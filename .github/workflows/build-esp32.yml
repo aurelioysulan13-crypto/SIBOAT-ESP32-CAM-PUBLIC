@@ -22,13 +22,15 @@ jobs:
           arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
           arduino-cli core update-index
           arduino-cli core install esp32:esp32@2.0.11
-
+          
       - name: Prepare Edge Impulse library
         run: |
-          mkdir -p build/libraries/siboat_inferencing
+          rm -rf build/libraries/siboat_inferencing
+          mkdir -p build/libraries/siboat_inferencing/src
+
           unzip -q siboat_inferencing.zip -d build/ei_unpacked
 
-          echo "Searching for siboat_inferencing.h..."
+          echo "Searching for Edge Impulse library..."
 
           EI_HEADER=$(find build/ei_unpacked -name siboat_inferencing.h -type f | head -1)
 
@@ -37,15 +39,26 @@ jobs:
             exit 1
           fi
 
-          EI_ROOT=$(dirname "$EI_HEADER")
+          EI_SRC=$(dirname "$EI_HEADER")
 
-          echo "Edge Impulse library found at:"
-          echo "$EI_ROOT"
+          echo "Edge Impulse source directory:"
+          echo "$EI_SRC"
 
-          cp -a "$EI_ROOT"/. build/libraries/siboat_inferencing/
+          cp -a "$EI_SRC"/. build/libraries/siboat_inferencing/src/
+
+          echo "Checking for Edge Impulse SDK..."
+
+          if [ ! -f "build/libraries/siboat_inferencing/src/edge-impulse-sdk/dsp/image/image.hpp" ]; then
+            echo "::error::edge-impulse-sdk/dsp/image/image.hpp was not found."
+            echo "Library tree:"
+            find build/libraries/siboat_inferencing -maxdepth 5 -type f | head -200
+            exit 1
+          fi
+
+          echo "Edge Impulse SDK found successfully."
 
           echo "Library contents:"
-          find build/libraries/siboat_inferencing -maxdepth 2 -type f | head -80
+          find build/libraries/siboat_inferencing/src -maxdepth 3 -type f | head -100
 
       - name: Prepare sketch
         run: |
