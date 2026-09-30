@@ -1,0 +1,93 @@
+name: Build SIBOAT ESP32-CAM
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Configure Arduino CLI
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls https://raw.githubusercontent.com/espressif/arduino-esp32/2.0.11/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@2.0.11
+
+      - name: Prepare Edge Impulse library
+        run: |
+          mkdir -p build/libraries/siboat_inferencing
+          unzip -q siboat_inferencing.zip -d build/ei_unpacked
+
+          echo "Searching for siboat_inferencing.h..."
+
+          EI_HEADER=$(find build/ei_unpacked -name siboat_inferencing.h -type f | head -1)
+
+          if [ -z "$EI_HEADER" ]; then
+            echo "::error::siboat_inferencing.h was not found in the supplied ZIP."
+            exit 1
+          fi
+
+          EI_ROOT=$(dirname "$EI_HEADER")
+
+          echo "Edge Impulse library found at:"
+          echo "$EI_ROOT"
+
+          cp -a "$EI_ROOT"/. build/libraries/siboat_inferencing/
+
+          echo "Library contents:"
+          find build/libraries/siboat_inferencing -maxdepth 2 -type f | head -80
+
+      - name: Prepare sketch
+        run: |
+          mkdir -p build/sketch
+          cp SIBOAT_ESP32-CAM_FINAL_FIRMWARE-3.ino \
+             build/sketch/SIBOAT_ESP32-CAM_FINAL_FIRMWARE-3.ino
+
+      - name: Compile firmware
+        run: |
+          mkdir -p build/output
+
+          arduino-cli compile \
+            --fqbn 'esp32:esp32:esp32cam:PartitionScheme=huge_app,PSRAM=enabled,CPUFreq=240,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=115200' \
+            --libraries build/libraries \
+            --output-dir build/output \
+            --export-binaries \
+            build/sketch
+
+      - name: Show build output
+        if: always()
+        run: |
+          echo "Build output:"
+          find build/output -maxdepth 2 -type f -printf '%p %s bytes\n' || true
+
+      - name: Package firmware
+        if: success()
+        run: |
+          mkdir -p release
+
+          cp build/output/*.bin release/ 2>/dev/null || true
+          cp build/output/*.elf release/ 2>/dev/null || true
+          cp build/output/*.map release/ 2>/dev/null || true
+
+          sha256sum release/* > release/SHA256SUMS.txt
+
+          echo "Release contents:"
+          ls -lh release
+
+      - name: Upload compiled firmware
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SIBOAT-ESP32-CAM-firmware
+          path: release/
+          if-no-files-found: error
