@@ -50,8 +50,8 @@ jobs:
       - name: Prepare sketch
         run: |
           mkdir -p build/sketch
-          cp SIBOAT_ESP32-CAM_FINAL_FIRMWARE-3.ino \
-             build/sketch/SIBOAT_ESP32-CAM_FINAL_FIRMWARE-3.ino
+          cp SIBOAT_ESP32-CAM_FINAL_FIRMWARE-3.ino
+             build/sketch/sketch.ino
 
       - name: Compile firmware
         run: |
