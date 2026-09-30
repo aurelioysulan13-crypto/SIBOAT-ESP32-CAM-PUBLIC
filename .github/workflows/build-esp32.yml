@@ -57,7 +57,7 @@ jobs:
           mkdir -p build/output
 
           arduino-cli compile \
-            --fqbn 'esp32:esp32:esp32cam:PartitionScheme=huge_app,PSRAM=enabled,CPUFreq=240,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=115200' \
+            --fqbn 'esp32:esp32:esp32cam:PartitionScheme=huge_app,CPUFreq=240,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=115200' \
             --libraries build/libraries \
             --output-dir build/output \
             --export-binaries \
